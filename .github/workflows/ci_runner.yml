@@ -1,0 +1,83 @@
+name: Offload WordPress Static files
+
+on:
+  workflow_dispatch:  
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get latest WordPress version & check release
+        id: get_version
+        run: |
+          VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r '.offers[0].current')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Latest WordPress version: $VERSION"
+
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "✅ Release v${VERSION} already exists. Skipping build."
+            exit 0
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download WordPress
+        run: |
+          curl -LO https://wordpress.org/wordpress-${VERSION}.zip
+          unzip -q wordpress-${VERSION}.zip
+          rm wordpress-${VERSION}.zip
+
+      - name: Remove unnecessary files
+        run: |
+          find wordpress -type f -name "*.php" -delete
+          rm -rf wordpress/license.txt wordpress/readme.html
+          rm -rf wordpress/wp-content/themes
+          rm -rf wordpress/wp-content/plugins
+
+      - name: Move static files into versioned folder
+        run: |
+          rsync -a wordpress/ ./
+          rm -rf wordpress
+
+      - name: Commit changes (if any)
+        run: |
+          git config --global user.name "STICKnoLOGIC[bot]"
+          git config --global user.email "65322242+STICKnoLOGIC@users.noreply.github.com"
+          git add -A
+          git commit -m "Add WP static assets v${VERSION}" || echo "No changes to commit"
+          git push || true
+
+      - name: Create release archive
+        run: |
+          zip -r wordpress-static-${VERSION}.zip wp-includes wp-admin wp-content
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ env.VERSION }}"
+          name: "WordPress Static v${{ env.VERSION }}"
+          body: "Auto-generated static build of WordPress core assets for version ${{ env.VERSION }}."
+          files: wordpress-static-${{ env.VERSION }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact for Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "versions/${{ env.VERSION }}"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
