@@ -40,12 +40,12 @@ jobs:
         run: |
           find wordpress -type f -name "*.php" -delete
           rm -rf wordpress/license.txt wordpress/readme.html
-          rm -rf wordpress/wp-content/themes
-          rm -rf wordpress/wp-content/plugins
-
+          rm -rf wordpress/wp-content
+          
       - name: Move static files into versioned folder
         run: |
           rsync -a wordpress/ ./
+          echo "{ \"version\": \"${VERSION}\" }" > wp-version.json
           rm -rf wordpress
 
       - name: Commit changes (if any)
@@ -58,7 +58,7 @@ jobs:
 
       - name: Create release archive
         run: |
-          zip -r wordpress-static-${VERSION}.zip wp-includes wp-admin wp-content
+          zip -r wordpress-static-${VERSION}.zip wp-includes wp-admin
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
