@@ -54,8 +54,11 @@ jobs:
           
       - name: Move static files into versioned folder
         run: |
-          rsync -a wordpress/ ./$VERSION
-          echo "{ \"version\": \"${VERSION}\" }" > .$VERSION/wp-version.json
+          rsync -a wordpress/ ./${VERSION}
+          echo "{ \"version\": \"${VERSION}\" }" > ./${VERSION}/wp-version.json
+          if [ -z "${{ github.event.inputs.version }}" ]; then
+          echo "{ \"version\": \"${VERSION}\" }" > wp-version.json
+          fi
           rm -rf wordpress
 
       - name: Commit changes (if any)
