@@ -28,7 +28,7 @@ jobs:
           if [ -z "${{ github.event.inputs.version }}" ]; then
           VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r '.offers[0].current')
           else
-          VERSION = '${{ github.event.inputs.version }}'
+          VERSION='${{ github.event.inputs.version }}'
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Latest WordPress version: $VERSION"
