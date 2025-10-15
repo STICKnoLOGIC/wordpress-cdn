@@ -1,7 +1,13 @@
 name: Offload WordPress Static files
 
 on:
-  workflow_dispatch:  
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Custom Wordpress Version'
+        required: false
+  schedule:
+    - cron: '0 */3 * * *'
 
 permissions:
   contents: write
@@ -19,7 +25,11 @@ jobs:
       - name: Get latest WordPress version & check release
         id: get_version
         run: |
+          if [ -z "${{ github.event.inputs.version }}" ]; then
           VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r '.offers[0].current')
+          else
+          VERSION = ${{ github.event.inputs.version }}
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Latest WordPress version: $VERSION"
 
@@ -44,8 +54,8 @@ jobs:
           
       - name: Move static files into versioned folder
         run: |
-          rsync -a wordpress/ ./
-          echo "{ \"version\": \"${VERSION}\" }" > wp-version.json
+          rsync -a wordpress/ ./$VERSION
+          echo "{ \"version\": \"${VERSION}\" }" > .$VERSION/wp-version.json
           rm -rf wordpress
 
       - name: Commit changes (if any)
